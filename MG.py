@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import math
 
 # Line segment class
-class LineSegment:
+class Segment:
     def __init__(self, sid, p1, p2, a, b, c):
         self.sid = sid # Unique identifier
         self.p1  = p1  # (x1, y1)
@@ -35,11 +35,11 @@ class TI:
         self.yi    = yi
         
 def generateSegments():
-    s = [[666, -134],[603, -61], [491, -40], [447, -95],
-         [487, -167],[398, -179],[339, -105],[255, -123],
-         [157, -68], [101, -138],[149, -227],[108, -323],
-         [226, -379],[201, -470],[238, -542],[315, -525],
-         [427, -553],[439, -451],[527, -472],[531, -364],
+    s = [[666, -134],[603, -61], [491, -40], [447, -95],  \
+         [487, -167],[398, -179],[339, -105],[255, -123], \
+         [157, -68], [101, -138],[149, -227],[108, -323], \
+         [226, -379],[201, -470],[238, -542],[315, -525], \
+         [427, -553],[439, -451],[527, -472],[531, -364], \
          [639, -355],[599, -252],[675, -213],[666, -134]]
     Segments = []
     num_Segments = len(s)-1
@@ -57,7 +57,7 @@ def generateSegments():
                 a = a/L
                 b = b/L
                 c = c/L
-            Segments.append(LineSegment(sid=i+1, p1=p1, p2=p2, \
+            Segments.append(Segment(sid=i+1, p1=p1, p2=p2, \
                a=a, b=b, c=c))                
     return Segments
 
@@ -79,18 +79,17 @@ def generateCorners(Segments):
             a = a/L
             b = b/L
             c = c/L
-            bisect = LineSegment(sid=i+1, p1=s1.p2, p2=[0,0], a=a, b=b, c=c)   
+            bisect = Segment(sid=i+1, p1=s1.p2, p2=[0,0], a=a, b=b, c=c)   
         if not reflex:          
             corners.append(Corner(cid=i+1, bisect=bisect))
         else:
-            cos_turning = s1.a*s2.a+s1.b*s2.b
-            speed = math.sqrt(0.5*(1-cos_turning))  # Actually speed inverse
             tid = len(tracks)+1
-            speed = math.sin(0.5*(math.acos(cos_turning)+math.pi))
-            tracks.append(Track(tid = tid, sid=i+1, t = 0, speed=speed, \
-                bisect=bisect))            
+            cos_turning = s1.a*s2.a+s1.b*s2.b
+            speed = math.sin(0.5*(math.acos(cos_turning)+math.pi))            
+            tracks.append(Track(tid = tid, sid=i+1,  \
+                t = 0, speed=speed, bisect=bisect))            
     return corners, tracks
-
+"""
 def intersectionTrackTrack(track1,track2):
     Aa = track1.bisect.a
     Ab = track1.bisect.b
@@ -102,14 +101,14 @@ def intersectionTrackTrack(track1,track2):
     x = (Ab*Bc-Bb*Ac)/delta
     y = (Ac*Ba-Bc*Aa)/delta    
     return x,y
-
-def intersectionSegmentTrack(line,track):
-    if line.sid == track.sid or line.sid == track.sid+1:
+"""
+def intersectionSegmentTrack(segment,track):
+    if segment.sid == track.sid or segment.sid == track.sid+1:
         return False, None, None
-    x1 = line.p1[0]
-    y1 = line.p1[1]
-    x2 = line.p2[0]
-    y2 = line.p2[1]
+    x1 = segment.p1[0]
+    y1 = segment.p1[1]
+    x2 = segment.p2[0]
+    y2 = segment.p2[1]
     x0 = track.bisect.p1[0]
     y0 = track.bisect.p1[1]
     dx = track.bisect.b
@@ -120,6 +119,7 @@ def intersectionSegmentTrack(line,track):
     intersect  = u>=0 and u<=1 and t>=0
     xi = x0+t*dx
     yi = y0+t*dy
+    # get the closest segment to the base point
     if intersect and track.bisect.p2 != [0,0]:
         d1 = (track.bisect.p1[0]-track.bisect.p2[0])**2+ \
              (track.bisect.p1[1]-track.bisect.p2[1])**2
@@ -127,6 +127,24 @@ def intersectionSegmentTrack(line,track):
              (track.bisect.p1[1]-yi)**2
         if d1<d2:         
             return False, None, None
+    return intersect,xi,yi
+
+def intersectionTrackTrack(track1,track2):
+    x1 = track1.bisect.p1[0]
+    y1 = track1.bisect.p1[1]
+    x2 = track1.bisect.p2[0]
+    y2 = track1.bisect.p2[1]
+    x3 = track2.bisect.p1[0]
+    y3 = track2.bisect.p1[1]
+    x4 = track2.bisect.p2[0]
+    y4 = track2.bisect.p2[1]
+    t = ((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/  \
+        ((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
+    u = -((x1-x2)*(y1-y3)-(y1-y2)*(x1-x3))/  \
+        ((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
+    intersect  = u<=1 and u>=0 and t<=1 and t>=0
+    xi = x1+t*(x2-x1)
+    yi = y1+t*(y2-y1)
     return intersect,xi,yi
 
 # Set up the bounds
@@ -162,25 +180,21 @@ TIs = []
 for track1 in Tracks:
     for track2 in Tracks:
         if track1.sid > track2.sid:
-            m1 = min(track1.bisect.p1[0], track1.bisect.p2[0])
-            m2 = max(track1.bisect.p1[0], track1.bisect.p2[0])
-            m3 = min(track1.bisect.p1[1], track1.bisect.p2[1])
-            m4 = max(track1.bisect.p1[1], track1.bisect.p2[1])        
-            xi,yi = intersectionTrackTrack(track1,track2)        
-            if m1<=xi and xi<=m2 and m3<=yi and yi<=m4:
+            cross,xi,yi = intersectionTrackTrack(track1,track2)            
+            if cross:
                 d1 = math.sqrt((xi-track1.bisect.p1[0])**2 + \
                            (yi-track1.bisect.p1[1])**2)
                 d2 = math.sqrt((xi-track2.bisect.p1[0])**2 + \
                            (yi-track2.bisect.p1[1])**2)
-                t1 = d1*track1.speed
-                t2 = d2*track2.speed
+                t1 = d1 * track1.speed
+                t2 = d2 * track2.speed
                 i = len(TIs)+1
                 if t1<=t2:
-                    TIs.append(TI(tsml = t1, tlrg = t2, \
-                        idsml = track1.tid, idlrg = track2.tid, xi=xi, yi=yi))
+                    TIs.append(TI(idsml=track1.tid, idlrg=track2.tid,\
+                        tsml=t1, tlrg=t2, xi=xi, yi=yi))
                 else:
-                    TIs.append(TI(tsml = t2, tlrg = t1, \
-                        idsml = track2.tid, idlrg = track1.tid, xi=xi, yi=yi))
+                    TIs.append(TI(idsml=track2.tid, idlrg=track1.tid, \
+                        tsml=t2, tlrg=t1, xi=xi, yi=yi))
                     
 print("Number of edges:", len(Segments))
 L = len(Tracks)                    
@@ -195,12 +209,14 @@ TIs.sort(key=get_tsml)
 
 # Determine death location
 for TI in TIs:
-    if (TI.tlrg < Tracks[TI.idlrg-1].t and  \
-          TI.tsml<Tracks[TI.idsml-1].t) or  \
-           Tracks[TI.idlrg-1].t==0:
-        Tracks[TI.idlrg-1].t = TI.tlrg
-        Tracks[TI.idlrg-1].bisect.p2[0] = TI.xi
-        Tracks[TI.idlrg-1].bisect.p2[1] = TI.yi
+    if(TI.tlrg < Tracks[TI.idlrg-1].t and (TI.tsml<Tracks[TI.idsml-1].t or \
+            Tracks[TI.idsml-1].t==0) or Tracks[TI.idlrg-1].t==0):
+        cross,xi,yi =  cross,xi,yi = \
+            intersectionTrackTrack(Tracks[TI.idsml-1],Tracks[TI.idlrg-1])
+        if cross:
+            Tracks[TI.idlrg-1].t = TI.tlrg
+            Tracks[TI.idlrg-1].bisect.p2[0] = TI.xi
+            Tracks[TI.idlrg-1].bisect.p2[1] = TI.yi
         
 # plot the tracks
 for track in Tracks:
